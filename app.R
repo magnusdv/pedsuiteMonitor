@@ -13,6 +13,8 @@ asDateSafe = function(x, default = "") {
   as.Date(x)
 }
 
+gh_logo = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+
 DEBUG = F
 
 PACKAGES = c("dvir",
@@ -28,11 +30,16 @@ PACKAGES = c("dvir",
              "segregatr",
              "verbalisr")
 
-#if(DEBUG) PACKAGES = PACKAGES[1:2]
+if(DEBUG) PACKAGES = PACKAGES[1:2]
 
 OWNER = rep("magnusdv", length(PACKAGES))
 names(OWNER) = PACKAGES
 OWNER["dvir"] = "thoree"
+
+PALETTE = colorRampPalette(c("green", "orange", "red"))(365)
+
+
+# Build UI ----------------------------------------------------------------
 
 header = dashboardHeader(title = "Pedsuite Monitor")
 
@@ -44,32 +51,29 @@ body = dashboardBody(
     .box-body {padding: 8px}
   ")),
 
-  fluidRow(uiOutput("package_boxes"))
-)
-
-ui = dashboardPage(header, dashboardSidebar(disable = T), body)
-
-server = function(input, output) {
-
-  colPal = colorRampPalette(c("green", "orange", "red", "purple"))(365)
-  gh_logo = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
-
-  output$package_boxes = renderUI({
+  fluidRow(
     lapply(PACKAGES, function(package) {
-      box(
-        width = 3, height = "245px",
+      box(id = paste0("box_", package),
+        width = 3, height = "245px", status = "primary", solidHeader = TRUE,
         title = tagList(package,
                         actionButton(paste0("refresh_", package), "", icon = icon("refresh"),
                                      class = "btn-xs", title = "Update"),
                         tags$div(tags$a(href=sprintf("https://github.com/%s/%s", OWNER[package], package),
                                         tags$img(src = gh_logo, class="github-icon")))),
-        status = "primary", solidHeader = TRUE,
+
         gt_output(paste0("versions_", package)),
         gt_output(paste0("commit_log_", package))
       )
     })
-  })
+  )
+)
 
+ui = dashboardPage(header, dashboardSidebar(disable = T), body)
+
+
+server = function(input, output) {
+
+  week = reactive(format(Sys.Date(), "%Y-%U"))
 
   lapply(PACKAGES, function(package) {
     owner = OWNER[package]
@@ -77,11 +81,13 @@ server = function(input, output) {
 
     observeEvent(input[[refreshVar]], message("Update: ", package))
 
-    cran = reactive({
+    # Update info -------------------------------------------------------------
+
+    cran = reactive({message("Updating ", package)
       if(DEBUG) {message("CRAN-", package); return(list())}
       url = paste0("https://crandb.r-pkg.org/", package)
       fromJSON(content(GET(url), "text", encoding = "UTF-8"))
-    }) |> bindCache(Sys.Date(), refreshVar, input[[refreshVar]])
+    }) |> bindCache(refreshVar, input[[refreshVar]], week())
 
 
     ghRelease = reactive({
@@ -89,7 +95,7 @@ server = function(input, output) {
       url = sprintf("https://api.github.com/repos/%s/%s/releases/latest",
                     owner, package)
       fromJSON(content(GET(url), "text", encoding = "UTF-8"))
-    }) |> bindCache(Sys.Date(), refreshVar, input[[refreshVar]])
+    }) |> bindCache(refreshVar, input[[refreshVar]], week())
 
     currentDev = reactive({
       if(DEBUG) {message("DEV-", package); return("")}
@@ -99,8 +105,7 @@ server = function(input, output) {
       m = regexpr("(?<=Version: )[0-9.-]+", DESCR, perl = TRUE)
       v = regmatches(DESCR, m)
       sub("00$", "", v)
-    }) |> bindCache(Sys.Date(), refreshVar, input[[refreshVar]])
-
+    }) |> bindCache(refreshVar, input[[refreshVar]], week())
 
     commits = reactive({
       if(DEBUG) {message("commits-", package); return(NULL)}
@@ -110,39 +115,35 @@ server = function(input, output) {
         return(NULL)
 
       a = fromJSON(content(GET(url), "text", encoding = "UTF-8"))
-      a$commits$commit
-    })|> bindCache(Sys.Date(), refreshVar, input[[refreshVar]])
+      a$commits$commit %||% list()
+    })|> bindCache(format(Sys.Date(), "%Y-%U"), refreshVar, input[[refreshVar]])
 
-
-
-    versions = reactive({
-      cran = cran()
-      ghRel = ghRelease()
-      dev = currentDev()
-
-      data.frame(CRAN = cran$Version %||% "?",
-                 date_CRAN = asDateSafe(cran$`Date/Publication`),
-                 GITHUB = ghRel$tag_name %||% "-",
-                 date_GH = asDateSafe(ghRel$published_at, ""),
-                 DEV = dev)
-    })
-
-    cranCol = reactive({
-      cranAge = as.numeric(Sys.Date() - as.Date(versions()$date_CRAN))
-      colPal[min(length(colPal), cranAge, na.rm = TRUE)]
-    })
 
     # Version table ------------------------------------------------------------
 
     output[[paste0("versions_", package)]] = render_gt({
-      tb = versions()
+      cran = cran()
+      ghRel = ghRelease()
+      dev = currentDev()
+
+      tb = data.frame(
+        CRAN = cran$Version %||% "?",
+        date_CRAN = asDateSafe(cran$`Date/Publication`),
+        GITHUB = ghRel$tag_name %||% "-",
+        date_GH = asDateSafe(ghRel$published_at, ""),
+        DEV = dev)
+
+      # Color of CRAN date
+      cranAge = as.numeric(Sys.Date() - as.Date(tb$date_CRAN))
+      cranCol = PALETTE[min(length(PALETTE), cranAge, na.rm = TRUE)]
+      cranOld = !is.na(cranAge) && cranAge >= 365
 
       tb |> gt() |>
         opt_stylize(6, color = "gray") |>
         tab_options(
           table.width = "100%",
           table.align = "left",
-          column_labels.padding = px(1),
+          column_labels.padding = px(10),
           data_row.padding = px(1),
           table.border.top.style = "hidden",
           container.padding.y = px(0),
@@ -168,9 +169,9 @@ server = function(input, output) {
         tab_style(style = cell_text(whitespace = "nowrap"),
                   locations = cells_body()) |>
         cols_label(starts_with("date") ~ "") |>
-        tab_style(style = cell_text(color = "red", weight = "bolder"),
+        tab_style(style = cell_text(color = "brown", weight = "bolder"),
                   locations = cells_body(columns = GITHUB, rows = sub("v", "", GITHUB) != CRAN)) |>
-        tab_style(style = cell_text(color = cranCol()),
+        tab_style(style = cell_text(color = cranCol, weight = if(cranOld) "bold" else "normal"),
                   locations = cells_body(columns = date_CRAN))
     })
 
