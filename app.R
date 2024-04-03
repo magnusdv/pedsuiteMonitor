@@ -12,15 +12,16 @@ gh_logo = "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark
 PACKAGES = c("dvir",
              "forrel",
              "ibdsim2",
-             "paramlink2",
+             "KLINK",
+             "pedbuildr",
+             "pedFamilias",
              "pedmut",
              "pedprobr",
-             "pedsuite",
              "pedtools",
-             "pedbuildr",
              "ribd",
              "segregatr",
-             "verbalisr")
+             "verbalisr"
+             )
 
 DEBUG = F
 if(DEBUG) PACKAGES = PACKAGES

@@ -7,6 +7,7 @@
 <!-- badges: end -->
 
 The **pedsuiteMonitor** is a Shiny app tracking the development of the
-[pedsuite](https://magnusdv.github.io/pedsuite/) packages.
+most important [pedsuite](https://magnusdv.github.io/pedsuite/)
+packages.
 
 Live app at <https://magnusdv.shinyapps.io/pedsuiteMonitor/>.

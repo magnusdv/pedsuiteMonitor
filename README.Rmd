@@ -16,6 +16,6 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The **pedsuiteMonitor** is a Shiny app tracking the development of the [pedsuite](https://magnusdv.github.io/pedsuite/) packages.
+The **pedsuiteMonitor** is a Shiny app tracking the development of the most important [pedsuite](https://magnusdv.github.io/pedsuite/) packages.
 
 Live app at https://magnusdv.shinyapps.io/pedsuiteMonitor/.
