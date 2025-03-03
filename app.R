@@ -1,5 +1,6 @@
 suppressPackageStartupMessages({
   library(shiny)
+  library(shinyjs)
   library(shinydashboard)
   library(httr)
   library(jsonlite)
@@ -23,8 +24,9 @@ PACKAGES = c("dvir",
              "verbalisr"
              )
 
-DEBUG = F
-if(DEBUG) PACKAGES = PACKAGES
+DEBUG = T
+if(DEBUG)
+  PACKAGES = PACKAGES[1:2]
 
 OWNER = rep("magnusdv", length(PACKAGES))
 names(OWNER) = PACKAGES
@@ -44,6 +46,13 @@ body = dashboardBody(
     .nav-tabs > li > a {padding:0px 10px;}
     .tab-content {padding:0px !important}
   ")),
+  useShinyjs(),
+  useBusyIndicators(spinners = FALSE, pulse = TRUE),
+
+  # JS script to stop running when browser is closed
+  tags$script(HTML("
+    window.onbeforeunload = function(){ Shiny.onInputChange('browserClosed', Math.random()); };
+  ")),
 
   fluidRow(
     lapply(PACKAGES, function(package) {
@@ -55,6 +64,7 @@ body = dashboardBody(
         title = tagList(package,
           actionButton(pst("refresh"), "", icon = icon("refresh"), class = "btn-xs", title = "Update"),
           tags$div(tags$a(href = sprintf("https://github.com/%s/%s", OWNER[package], package),
+                          target = "_blank",
                           tags$img(src = gh_logo, class="github-icon")))),
         gt_output(pst("versions")),
         div(style = "position: relative;",
@@ -75,6 +85,9 @@ ui = dashboardPage(header, dashboardSidebar(disable = T), body)
 
 
 server = function(input, output) {
+
+  # Close app when browser closes
+  observeEvent(input$browserClosed, stopApp())
 
   week = reactive(format(Sys.Date(), "%Y-%U"))
 
@@ -109,4 +122,4 @@ server = function(input, output) {
 }
 
 
-shinyApp(ui, server)
+shinyApp(ui, server, options = list(launch.browser = TRUE))
