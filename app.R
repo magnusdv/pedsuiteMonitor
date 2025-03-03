@@ -26,7 +26,7 @@ PACKAGES = c("dvir",
 
 DEBUG = F
 if(DEBUG)
-  PACKAGES = PACKAGES[1:2]
+  PACKAGES = PACKAGES[1:3]
 
 OWNER = rep("magnusdv", length(PACKAGES))
 names(OWNER) = PACKAGES
@@ -49,9 +49,11 @@ body = dashboardBody(
   useShinyjs(),
   useBusyIndicators(spinners = FALSE, pulse = TRUE),
 
-  # JS script to stop running when browser is closed
   tags$script(HTML("
+    // Stop app when browser is closed
     window.onbeforeunload = function(){ Shiny.onInputChange('browserClosed', Math.random()); };
+    // Copy text to clipboard
+    Shiny.addCustomMessageHandler('copyText',function(text){navigator.clipboard.writeText(text);});
   ")),
 
   fluidRow(
@@ -86,7 +88,7 @@ ui = dashboardPage(header, dashboardSidebar(disable = T), body)
 
 # Server function --------------------------------------------------------
 
-server = function(input, output) {
+server = function(input, output, session) {
 
   # Close app when browser closes
   observeEvent(input$browserClosed, stopApp())
@@ -125,8 +127,8 @@ server = function(input, output) {
     # Copy commit messages to clipboard
     observeEvent(input[[pst("copy")]], {
       commitMess = data()$commits$Message
-      write.table(commitMess, "clipboard", col.names = F, quote = F,
-                  row.names = rep("*", length(commitMess)))
+      txt = paste0("* ", commitMess, collapse = "\n")
+      session$sendCustomMessage("copyText", txt)
     })
   })
 
