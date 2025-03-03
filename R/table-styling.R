@@ -1,11 +1,5 @@
-PALETTE = colorRampPalette(c("green", "orange", "red"))(365)
 
 style_versions = function(tb) {
-
-  # Color of CRAN date
-  cranAge = as.numeric(Sys.Date() - as.Date(tb$date_CRAN))
-  cranCol = PALETTE[min(length(PALETTE), cranAge, na.rm = TRUE)]
-  cranOld = !is.na(cranAge) && cranAge >= 365
 
   tb |> gt() |>
     opt_stylize(6, color = "cyan") |>
@@ -47,10 +41,7 @@ style_versions = function(tb) {
     cols_label(starts_with("date") ~ "") |>
     tab_style(style = cell_text(color = "brown", weight = "bolder"),
               locations = cells_body(columns = GITHUB,
-                                     rows = sub("v", "", GITHUB) != CRAN)) |>
-    tab_style(style = cell_text(color = cranCol,
-                                weight = if(cranOld) "bold" else "normal"),
-              locations = cells_body(columns = date_CRAN))
+                                     rows = sub("v", "", GITHUB) != CRAN))
 }
 
 

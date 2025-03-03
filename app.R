@@ -24,7 +24,7 @@ PACKAGES = c("dvir",
              "verbalisr"
              )
 
-DEBUG = T
+DEBUG = F
 if(DEBUG)
   PACKAGES = PACKAGES[1:2]
 
@@ -84,26 +84,37 @@ body = dashboardBody(
 ui = dashboardPage(header, dashboardSidebar(disable = T), body)
 
 
+# Server function --------------------------------------------------------
+
 server = function(input, output) {
 
   # Close app when browser closes
   observeEvent(input$browserClosed, stopApp())
 
   week = reactive(format(Sys.Date(), "%Y-%U"))
+  pal = colorRampPalette(c("greenyellow","#FFB84C","#FF6F61"))(21)
 
   lapply(PACKAGES, function(package) {
 
     pst = function(s) paste(s, package, sep = "_")
 
     # Update info -------------------------------------------------------------
-    data = reactive(updateInfo(package, OWNER[package], debug = DEBUG))|>
+    data = reactive(updateInfo(package, OWNER[package], debug = DEBUG)) |>
       bindCache(package, input[[pst("refresh")]], week())
+
+    ncommits = reactive(nrow(data()$commits))
 
     output[[pst("versions")]] = render_gt(data()$versions |> style_versions())
 
-    output[[pst("issues_header")]]  = renderText(paste("Open issues:", nrow(data()$issues)))
+    # Commits tab title: hack to add dynamic background color
+    observe({
+      n = ncommits()
+      col = if(n>20) pal[21] else pal[n+1]
+      runjs(sprintf("$('a[data-value=\"%s\"]').text('Commits: %s').css('background-color','%s');",
+                    pst("commits_header"), n, col))
+    })
 
-    output[[pst("commits_header")]] = renderText(paste("Commits:", nrow(data()$commits)))
+    output[[pst("issues_header")]]  = renderText(paste("Issues:", nrow(data()$issues)))
 
     output[[pst("commits")]] = render_gt(data()$commits |> style_commits(),
                                             height = "130px")
