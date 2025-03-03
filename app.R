@@ -28,7 +28,6 @@ if(DEBUG) PACKAGES = PACKAGES
 
 OWNER = rep("magnusdv", length(PACKAGES))
 names(OWNER) = PACKAGES
-OWNER["dvir"] = "thoree"
 
 
 # Build UI ----------------------------------------------------------------
