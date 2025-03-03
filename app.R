@@ -58,11 +58,16 @@ body = dashboardBody(
           tags$div(tags$a(href = sprintf("https://github.com/%s/%s", OWNER[package], package),
                           tags$img(src = gh_logo, class="github-icon")))),
         gt_output(pst("versions")),
-        tabsetPanel(
-          tabPanel(title = uiOutput(pst("issues_header")), gt_output(pst("issues"))),
-          tabPanel(title = uiOutput(pst("commits_header")), gt_output(pst("commits")))
-        )
+        div(style = "position: relative;",
+          tabsetPanel(
+            tabPanel(title = pst("commits_header"), gt_output(pst("commits"))),
+            tabPanel(title = uiOutput(pst("issues_header")), gt_output(pst("issues")))
+          ),
+          actionButton(pst("copy"), label = tagList(icon("copy")), class = "btn-sm",
+                       style="position:absolute; top:0; right:0; padding:0 2px;")
+        ),
       )
+
     })
   )
 )
@@ -93,7 +98,15 @@ server = function(input, output) {
 
     output[[pst("issues")]] = render_gt(data()$issues |> style_issues(),
                                         height = "130px")
+
+    # Copy commit messages to clipboard
+    observeEvent(input[[pst("copy")]], {
+      commitMess = data()$commits$Message
+      write.table(commitMess, "clipboard", col.names = F, quote = F,
+                  row.names = rep("*", length(commitMess)))
+    })
   })
+
 }
 
 
